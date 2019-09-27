@@ -1,0 +1,2 @@
+configparser==4.0.2
+confluent-kafka==1.1.0
