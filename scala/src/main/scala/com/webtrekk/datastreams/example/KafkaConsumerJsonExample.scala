@@ -8,7 +8,7 @@ import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.serialization.{LongDeserializer, StringDeserializer}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import com.webtrekk.datastreams.example.config.ConfigKeys._
 
 object KafkaConsumerJsonExample {
@@ -48,7 +48,7 @@ object KafkaConsumerJsonExample {
       }
     }
     // Close the Consumer when necessary
-    // consumer.close()
+    consumer.close()
   }
 
 }

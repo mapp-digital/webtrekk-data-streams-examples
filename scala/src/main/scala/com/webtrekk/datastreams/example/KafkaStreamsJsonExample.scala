@@ -1,13 +1,16 @@
 package com.webtrekk.datastreams.example
 
-import java.lang.Thread.UncaughtExceptionHandler
+import java.util.concurrent.CountDownLatch
 import java.util.{Properties, ResourceBundle}
 
 import com.webtrekk.datastreams.example.config.ConfigKeys.{Streams, _}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.config.SaslConfigs
-import org.apache.kafka.streams.scala.StreamsBuilder
-import org.apache.kafka.streams.{KafkaStreams, StreamsConfig}
+import org.apache.kafka.streams.errors.StreamsUncaughtExceptionHandler
+import org.apache.kafka.streams.errors.StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse
+import org.apache.kafka.common.serialization.Serdes
+import org.apache.kafka.streams.kstream.Consumed
+import org.apache.kafka.streams.{KafkaStreams, StreamsBuilder, StreamsConfig}
 
 object KafkaStreamsJsonExample {
 
@@ -23,7 +26,7 @@ object KafkaStreamsJsonExample {
     props.put(StreamsConfig.APPLICATION_ID_CONFIG, config.getString(GroupId))
     props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, config.getString(Endpoints))
     props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, config.getString(Streams.NumOfThreads))
-    props.put(StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, config.getString(Streams.DeserializationExceptionHandler))
+    props.put(StreamsConfig.DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, config.getString(Streams.DeserializationExceptionHandler))
     props.put(StreamsConfig.SECURITY_PROTOCOL_CONFIG, config.getString(SecurityProtocol))
     props.put(SaslConfigs.SASL_MECHANISM, config.getString(SecuritySaslMechanism))
     props.put(SaslConfigs.SASL_JAAS_CONFIG, getJaasConfig(config))
@@ -36,34 +39,32 @@ object KafkaStreamsJsonExample {
     s"""org.apache.kafka.common.security.scram.ScramLoginModule required username="$scramUser" password="$scramPassword";"""
   }
 
-  private val getUncaughtExceptionHandler: UncaughtExceptionHandler = {
-    case (_, ex) =>
-      println(s"Exception running the Stream $ex")
-      ()
+  private val getUncaughtExceptionHandler: StreamsUncaughtExceptionHandler = (ex: Throwable) => {
+    println(s"Exception running the Stream $ex")
+    StreamThreadExceptionResponse.SHUTDOWN_CLIENT
   }
 
   def main(args: Array[String]): Unit = {
     val kafkaStreams = getKafkaStreams
     kafkaStreams.setUncaughtExceptionHandler(getUncaughtExceptionHandler)
-    kafkaStreams.start()
 
-    // Close the Stream when necessary
-    // kafkaStreams.close()
+    // Keep the application running until it is terminated (e.g. Ctrl+C)
+    val latch = new CountDownLatch(1)
+    sys.addShutdownHook {
+      kafkaStreams.close()
+      latch.countDown()
+    }
+    kafkaStreams.start()
+    latch.await()
   }
 
   private def getKafkaStreams: KafkaStreams = {
-    import org.apache.kafka.streams.scala.ImplicitConversions._
-    import org.apache.kafka.streams.scala.Serdes._
-
     val config = ResourceBundle.getBundle("application")
     val streamBuilder = new StreamsBuilder()
 
     streamBuilder
-      .stream[Long, String](config.getString(Topic))
-      .foreach {
-        case (key, value) =>
-          println(s"key = $key, value = $value")
-      }
+      .stream(config.getString(Topic), Consumed.`with`(Serdes.Long(), Serdes.String()))
+      .foreach((key, value) => println(s"key = $key, value = $value"))
 
     new KafkaStreams(streamBuilder.build(), getProperties(config))
   }

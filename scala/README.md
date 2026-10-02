@@ -21,14 +21,14 @@ To consume data from any of your streams you will have to adapt the configuratio
 The Application of your choice may be executed as follows.
 ```
 sbt
-run [main-class]
+runMain [main-class]
 ```
 ```
-sbt "run [main-class]"
+sbt "runMain [main-class]"
 ```
 ```
 // e.g.
 sbt
-run com.webtrekk.datastreams.example.KafkaConsumerJsonExample
-run com.webtrekk.datastreams.example.KafkaStreamsJsonExample
+runMain com.webtrekk.datastreams.example.KafkaConsumerJsonExample
+runMain com.webtrekk.datastreams.example.KafkaStreamsJsonExample
 ```

@@ -7,13 +7,13 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.errors.StreamsUncaughtExceptionHandler;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 
 import java.util.Properties;
 import java.util.ResourceBundle;
 
-import static java.lang.Thread.UncaughtExceptionHandler;
 
 class KafkaStreamsJsonExample {
 
@@ -51,7 +51,7 @@ class KafkaStreamsJsonExample {
             props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, config.getString(ConfigKeys.Endpoints));
             props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, config.getString(ConfigKeys.Streams.NumOfThreads));
             props.put(StreamsConfig.SECURITY_PROTOCOL_CONFIG, config.getString(ConfigKeys.SecurityProtocol));
-            props.put(StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, config.getString(ConfigKeys.Streams.DeserializationExceptionHandler));
+            props.put(StreamsConfig.DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, config.getString(ConfigKeys.Streams.DeserializationExceptionHandler));
             props.put(SaslConfigs.SASL_MECHANISM, config.getString(ConfigKeys.SecuritySaslMechanism));
             props.put(SaslConfigs.SASL_JAAS_CONFIG, getJaasConfig(config));
             return props;
@@ -63,8 +63,11 @@ class KafkaStreamsJsonExample {
             return "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + scramUser + "\" password=\"" + scramPassword + "\";";
         }
 
-        private UncaughtExceptionHandler getUncaughtExceptionHandler() {
-            return (thread, exception) -> System.out.println("Exception running the Stream " + exception.getMessage());
+        private StreamsUncaughtExceptionHandler getUncaughtExceptionHandler() {
+            return exception -> {
+                System.out.println("Exception running the Stream " + exception.getMessage());
+                return StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse.SHUTDOWN_CLIENT;
+            };
         }
 
     }
